@@ -202,3 +202,6 @@ fastlane internal
 #+END_SRC
 
 This should upload a new apk and can be seen in your google console.
+
+* MISC
+[[https://github.com/flutter/flutter/pull/19916]]
