@@ -1,4 +1,4 @@
-package com.example.fluttertravispoc;
+package vavende.example.fluttertravispoc;
 
 import android.os.Bundle;
 import io.flutter.app.FlutterActivity;

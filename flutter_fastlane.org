@@ -1,0 +1,203 @@
+#+TITLE: Flutter / Fastlane
+
+* prepare flutter
+** create app
+#+BEGIN_SRC sh
+flutter create <app-name>
+#+END_SRC
+** remove com.example from app
+do a grep and replace the com.example with like <company>.example
+** sign the app
+If you have an existing keystore, skip to the next step. If not, create one by running the following at the command line: 
+
+- replace =key.jks= with whatever name you want
+- replace alias of =key= with whatever you want
+
+#+BEGIN_SRC sh
+keytool -genkey -v -keystore key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias key
+#+END_SRC
+
+This creates the file =key.jks=.
+DO NOT CHECK THIS IN TO SOURCE CONTROL
+
+** android/key.properties
+
+Create android/key.properties file
+
+#+BEGIN_SRC 
+storePassword=<password from previous step>
+keyPassword=<password from previous step>
+keyAlias=key
+storeFile=<location of the key store file, e.g. /Users/<user name>/key.jks>
+#+END_SRC
+
+DO NOT CHECK THIS IN TO SOURCE CONTROL
+
+** configure signing in gradle
+
+*** add reference to key.properties
+Replace:
+
+#+BEGIN_SRC jaa
+android {
+#+END_SRC
+with the keystore information from your properties file:
+
+#+BEGIN_SRC java
+def keystorePropertiesFile = rootProject.file("key.properties")
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
+android {
+#+END_SRC
+
+*** sign with credentials and remove debug
+
+Replace:
+
+#+BEGIN_SRC java
+buildTypes {
+    release {
+        // TODO: Add your own signing config for the release build.
+        // Signing with the debug keys for now, so `flutter run --release` works.
+        signingConfig signingConfigs.debug
+    }
+}
+#+END_SRC
+
+#+BEGIN_SRC java
+signingConfigs {
+    release {
+        keyAlias keystoreProperties['keyAlias']
+        keyPassword keystoreProperties['keyPassword']
+        storeFile file(keystoreProperties['storeFile'])
+        storePassword keystoreProperties['storePassword']
+    }
+}
+buildTypes {
+    release {
+        signingConfig signingConfigs.release
+    }
+}
+#+END_SRC
+
+Release builds of your app will now be signed automatically.
+
+** TODO Enabling Proguard
+By default, Flutter does not obfuscate or minify the Android host.
+
+** build apk
+Note the following command defaults to --release
+#+BEGIN_SRC sh
+flutter build apk
+#+END_SRC
+g
+* prepare google play console
+** log in to google play console
+** create application
+all applications > click btn: create application
+** store listing tab
+- add short description
+- add full description
+- add screenshots
+- add hi-res icon
+- add feature graphic
+- select application type
+- select category
+- content rating (will have to come back to this)
+- check not submitting a privacy policy at this time
+
+** app releases tab
+manually upload apk that you built with flutter
+- internal test track > click 'manage'
+- click 'create release'
+- click 'continue' under app signing by google play
+- upload apk (browse files)
+- fill out what's new in this release
+- click 'save'
+** pricing and distribution tab
+- select united states in available column
+- fill out rest of questionnaire
+- check Marketing opt-out
+- check content guidelines
+- check us export laws
+- click save draft
+** content rating tab
+- click 'continue'
+- enter email address
+- fill out questionnaire
+- click 'calculate rating'
+- click 'apply rating'
+** back to app leases tab
+add users to test your app
+- click save
+- click 'edit release'
+- click 'review'
+- click 'start rollout to internal test'
+* user access to google play console
+[[https://docs.fastlane.tools/actions/supply/#setup]]
+- Open the Google Play Console
+- Select Settings tab, followed by the API access tab
+- Click the Create Service Account button and follow the Google API Console link in the dialog
+- Click the Create Service account button at the top of the developers console screen
+- Provide a name for the service account
+- Click Select a role and choose Service Accounts > Service Account User
+- Check the Furnish a new private key checkbox
+- Select JSON as the Key type
+- Click Create to close the dialog
+- Make a note of the file name of the JSON file downloaded to your computer
+- Back on the Google Play developer console, click Done to close the dialog
+- Click on Grant Access for the newly added service account
+- Choose Release Manager from the Role dropdown
+- Click Add user to close the dialog
+
+move this to android/secret.json
+DO NOT CHECK THIS IN TO SOURCE CONTROL
+
+* use fastlane
+** install fastlane
+gem install fastlane
+** init fastlane in project
+#+BEGIN_SRC sh
+cd android/
+fastlane init
+#+END_SRC
+- enter package name, but use the name that is in AndroidManigest.xml, which will be different than the flutter app name
+- enter path to secret.json file
+** run fastlane test
+make sure you are in the android/ directory and run
+#+BEGIN_SRC sh
+fastlane test
+#+END_SRC
+** Add internal lane
+Add the following lane to your fastlane file
+#+BEGIN_SRC ruby
+  desc "Submit a new Internal Build to Google Play "
+  lane :internal do
+    # gradle(task: "clean assembleRelease")
+    gradle(task: 'assemble', build_type: 'Release')
+    upload_to_play_store(track: 'internal', apk:"../build/app/outputs/apk/release/app-release.apk")
+  end
+#+END_SRC
+** run internal lane
+#+BEGIN_SRC sh
+fastlane internal
+#+END_SRC
+
+Should see this error:
+#+BEGIN_SRC 
+Google Api Error: apkUpgradeVersionConflict: APK specifies a version code that has already been used.
+#+END_SRC
+** increment version number in pubspec.yaml
+version: 1.0.0+1 --> 1.0.1+2
+
+reference: [[https://medium.com/@ralphbergmann/versioning-with-flutter-299869e68af4]]
+** try fastlane again
+#+BEGIN_SRC 
+flutter clean
+flutter build apk
+cd android
+fastlane internal
+#+END_SRC
+
+This should upload a new apk and can be seen in your google console.
