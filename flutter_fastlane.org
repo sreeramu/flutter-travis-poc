@@ -85,13 +85,14 @@ Release builds of your app will now be signed automatically.
 
 ** TODO Enabling Proguard
 By default, Flutter does not obfuscate or minify the Android host.
+TODO:
 
 ** build apk
 Note the following command defaults to --release
 #+BEGIN_SRC sh
 flutter build apk
 #+END_SRC
-g
+
 * prepare google play console
 ** log in to google play console
 ** create application
